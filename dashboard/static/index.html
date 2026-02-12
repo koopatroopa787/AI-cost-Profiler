@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Cost Profiler Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <div class="logo-icon">◈</div>
+                    <h1>AI COST PROFILER</h1>
+                </div>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">CONNECTING</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <select id="timeRange" class="time-select">
+                    <option value="1">Last Hour</option>
+                    <option value="24" selected>Last 24 Hours</option>
+                    <option value="168">Last 7 Days</option>
+                    <option value="720">Last 30 Days</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- Main Stats -->
+        <section class="stats-grid">
+            <div class="stat-card primary">
+                <div class="stat-label">TOTAL COST</div>
+                <div class="stat-value" id="totalCost">$0.00</div>
+                <div class="stat-sublabel">IN SELECTED PERIOD</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">REQUESTS</div>
+                <div class="stat-value" id="requestCount">0</div>
+                <div class="stat-sublabel">API CALLS</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">TOKENS</div>
+                <div class="stat-value" id="totalTokens">0</div>
+                <div class="stat-sublabel">TOTAL PROCESSED</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">AVG COST</div>
+                <div class="stat-value" id="avgCost">$0.000</div>
+                <div class="stat-sublabel">PER REQUEST</div>
+            </div>
+        </section>
+
+        <!-- Alerts -->
+        <section class="alerts" id="alertsSection" style="display: none;">
+            <div class="alert-card" id="alertCard">
+                <div class="alert-icon">⚠</div>
+                <div class="alert-content">
+                    <div class="alert-title" id="alertTitle">High Cost Alert</div>
+                    <div class="alert-message" id="alertMessage"></div>
+                </div>
+                <button class="alert-dismiss" onclick="dismissAlert()">×</button>
+            </div>
+        </section>
+
+        <!-- Two Column Layout -->
+        <div class="two-columns">
+            <!-- Left Column -->
+            <div class="column">
+                <!-- Cost by Agent -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>COST BY AGENT</h2>
+                    </div>
+                    <div class="panel-content" id="agentCosts">
+                        <div class="empty-state">No agent data yet</div>
+                    </div>
+                </section>
+
+                <!-- Expensive Prompts -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>EXPENSIVE PROMPTS</h2>
+                        <span class="badge">TOP 5</span>
+                    </div>
+                    <div class="panel-content" id="expensivePrompts">
+                        <div class="empty-state">No prompt data yet</div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column -->
+            <div class="column">
+                <!-- Optimization Suggestions -->
+                <section class="panel suggestions-panel">
+                    <div class="panel-header">
+                        <h2>OPTIMIZATION SUGGESTIONS</h2>
+                    </div>
+                    <div class="panel-content" id="suggestions">
+                        <div class="empty-state">Analyzing usage patterns...</div>
+                    </div>
+                </section>
+
+                <!-- Live Feed -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>LIVE FEED</h2>
+                        <span class="live-indicator">● LIVE</span>
+                    </div>
+                    <div class="panel-content live-feed" id="liveFeed">
+                        <div class="empty-state">Waiting for activity...</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
