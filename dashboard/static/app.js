@@ -665,7 +665,10 @@ class CostProfilerDashboard {
         if (data.latest_records?.length) {
             const el = document.getElementById('liveFeed');
             if (el) {
-                el.innerHTML = data.latest_records.map(r => this.makeFeedItem(r)).join('');
+                el.textContent = '';
+                data.latest_records.forEach(r => {
+                    el.appendChild(this.buildFeedItem(r));
+                });
             }
         }
 
@@ -682,30 +685,54 @@ class CostProfilerDashboard {
 
         el.querySelector('.empty-state')?.remove();
 
-        const div = document.createElement('div');
-        div.className = 'feed-item';
-        div.innerHTML = this.makeFeedItemContent(record);
-        el.insertBefore(div, el.firstChild);
+        const item = this.buildFeedItem(record);
+        el.insertBefore(item, el.firstChild);
 
         while (el.children.length > 25) el.removeChild(el.lastChild);
     }
 
-    makeFeedItem(r) {
-        return `<div class="feed-item">${this.makeFeedItemContent(r)}</div>`;
+    buildFeedItem(r) {
+        const t = new Date(r.timestamp).toLocaleTimeString();
+
+        const item = document.createElement('div');
+        item.className = 'feed-item';
+
+        const left = document.createElement('div');
+        left.className = 'feed-left';
+
+        const agent = document.createElement('span');
+        agent.className = 'feed-agent';
+        agent.textContent = r.agent;
+
+        const modelLine = document.createElement('span');
+        modelLine.className = 'feed-model';
+        modelLine.textContent = r.model + ' · ' + fmtTokens(r.tokens || 0) + ' tok'
+            + (r.latency_ms ? ' · ' + r.latency_ms + 'ms' : '');
+
+        left.appendChild(agent);
+        left.appendChild(modelLine);
+
+        const right = document.createElement('div');
+        right.className = 'feed-right';
+
+        const cost = document.createElement('span');
+        cost.className = 'feed-cost';
+        cost.textContent = fmtCost(r.cost);
+
+        const meta = document.createElement('span');
+        meta.className = 'feed-meta';
+        meta.textContent = t;
+
+        right.appendChild(cost);
+        right.appendChild(meta);
+
+        item.appendChild(left);
+        item.appendChild(right);
+        return item;
     }
 
-    makeFeedItemContent(r) {
-        const t = new Date(r.timestamp).toLocaleTimeString();
-        const lat = r.latency_ms ? ` · ${r.latency_ms}ms` : '';
-        return `
-            <div class="feed-left">
-                <span class="feed-agent">${escapeHtml(r.agent)}</span>
-                <span class="feed-model">${escapeHtml(r.model)} · ${fmtTokens(r.tokens || 0)} tok${lat}</span>
-            </div>
-            <div class="feed-right">
-                <span class="feed-cost">${fmtCost(r.cost)}</span>
-                <span class="feed-meta">${t}</span>
-            </div>`;
+    makeFeedItem(r) {
+        return this.buildFeedItem(r).outerHTML;
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────

@@ -17,14 +17,14 @@ from typing import Optional
 R = "\033[0m"           # reset
 BOLD = "\033[1m"
 DIM = "\033[2m"
+WHITE = "\033[97m"
+
 GREEN = "\033[92m"
 CYAN = "\033[96m"
 YELLOW = "\033[93m"
 RED = "\033[91m"
 BLUE = "\033[94m"
 MAGENTA = "\033[95m"
-WHITE = "\033[97m"
-BG_DARK = "\033[40m"
 
 # Box-drawing
 TL, TR, BL, BR = "╔", "╗", "╚", "╝"
