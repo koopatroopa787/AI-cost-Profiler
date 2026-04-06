@@ -308,9 +308,164 @@ class SQLiteStorage(StorageBackend):
             return [dict(row) for row in cursor.fetchall()]
 
 
+    def get_costs_by_model(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """Get cost breakdown by model."""
+        query = """
+            SELECT
+                model,
+                provider,
+                SUM(total_cost) as total_cost,
+                SUM(input_cost) as input_cost,
+                SUM(output_cost) as output_cost,
+                SUM(total_tokens) as total_tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                COUNT(*) as request_count,
+                AVG(total_cost) as avg_cost,
+                AVG(latency_ms) as avg_latency_ms
+            FROM usage_records
+            WHERE 1=1
+        """
+        params: List[Any] = []
+
+        if start_time:
+            query += " AND timestamp >= ?"
+            params.append(start_time.isoformat())
+
+        if end_time:
+            query += " AND timestamp <= ?"
+            params.append(end_time.isoformat())
+
+        query += " GROUP BY model, provider ORDER BY total_cost DESC"
+
+        with self._get_connection() as conn:
+            cursor = conn.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_costs_by_provider(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """Get cost breakdown by provider."""
+        query = """
+            SELECT
+                provider,
+                SUM(total_cost) as total_cost,
+                SUM(total_tokens) as total_tokens,
+                COUNT(*) as request_count,
+                AVG(total_cost) as avg_cost,
+                COUNT(DISTINCT model) as model_count,
+                AVG(latency_ms) as avg_latency_ms
+            FROM usage_records
+            WHERE 1=1
+        """
+        params: List[Any] = []
+
+        if start_time:
+            query += " AND timestamp >= ?"
+            params.append(start_time.isoformat())
+
+        if end_time:
+            query += " AND timestamp <= ?"
+            params.append(end_time.isoformat())
+
+        query += " GROUP BY provider ORDER BY total_cost DESC"
+
+        with self._get_connection() as conn:
+            cursor = conn.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_hourly_trend(
+        self,
+        hours: int = 24,
+        start_time: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """Get hourly cost / request trend."""
+        if start_time is None:
+            start_time = datetime.utcnow() - timedelta(hours=hours)
+        query = """
+            SELECT
+                strftime('%Y-%m-%dT%H:00:00', timestamp) as hour,
+                SUM(total_cost) as total_cost,
+                SUM(total_tokens) as total_tokens,
+                COUNT(*) as request_count
+            FROM usage_records
+            WHERE timestamp >= ?
+            GROUP BY hour
+            ORDER BY hour ASC
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute(query, [start_time.isoformat()])
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_latency_stats(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> Dict[str, Any]:
+        """Get latency statistics."""
+        query = """
+            SELECT
+                AVG(latency_ms) as avg_ms,
+                MIN(latency_ms) as min_ms,
+                MAX(latency_ms) as max_ms,
+                COUNT(*) as count
+            FROM usage_records
+            WHERE latency_ms IS NOT NULL
+        """
+        params: List[Any] = []
+        if start_time:
+            query += " AND timestamp >= ?"
+            params.append(start_time.isoformat())
+        if end_time:
+            query += " AND timestamp <= ?"
+            params.append(end_time.isoformat())
+
+        with self._get_connection() as conn:
+            cursor = conn.execute(query, params)
+            row = cursor.fetchone()
+            return dict(row) if row else {}
+
+    def get_user_costs(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Get cost breakdown by user."""
+        query = """
+            SELECT
+                user,
+                SUM(total_cost) as total_cost,
+                SUM(total_tokens) as total_tokens,
+                COUNT(*) as request_count,
+                COUNT(DISTINCT agent) as agent_count,
+                COUNT(DISTINCT model) as model_count
+            FROM usage_records
+            WHERE user IS NOT NULL
+        """
+        params: List[Any] = []
+        if start_time:
+            query += " AND timestamp >= ?"
+            params.append(start_time.isoformat())
+        if end_time:
+            query += " AND timestamp <= ?"
+            params.append(end_time.isoformat())
+        query += f" GROUP BY user ORDER BY total_cost DESC LIMIT {limit}"
+
+        with self._get_connection() as conn:
+            cursor = conn.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+
+
 class InMemoryStorage(StorageBackend):
     """In-memory storage backend for testing."""
-    
+
     def __init__(self):
         self.records: List[UsageRecord] = []
     

@@ -17,11 +17,11 @@ Usage:
         pass
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .tracker import CostTracker
-from .models import UsageRecord, CostSummary, AgentCost, TaskCost
-from .pricing import PricingEngine, Provider
+from .models import UsageRecord, CostSummary, AgentCost, TaskCost, Provider
+from .pricing import PricingEngine, ModelPricing, DEFAULT_PRICING, PROVIDER_INFO
 from .token_counter import TokenCounter
 from .storage import StorageBackend, SQLiteStorage
 from .analytics import Analytics, OptimizationSuggestion
@@ -32,11 +32,15 @@ __all__ = [
     "CostSummary",
     "AgentCost",
     "TaskCost",
-    "PricingEngine",
     "Provider",
+    "PricingEngine",
+    "ModelPricing",
+    "DEFAULT_PRICING",
+    "PROVIDER_INFO",
     "TokenCounter",
     "StorageBackend",
     "SQLiteStorage",
     "Analytics",
     "OptimizationSuggestion",
 ]
+
