@@ -7,16 +7,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <div class="dashboard">
-        <!-- Header -->
+
+        <!-- ── Header ──────────────────────────────────────────────────── -->
         <header class="header">
             <div class="header-left">
                 <div class="logo">
                     <div class="logo-icon">◈</div>
-                    <h1>AI COST PROFILER</h1>
+                    <div>
+                        <h1>AI COST PROFILER</h1>
+                        <div class="logo-sub">Universal · 20+ Providers · 70+ Models</div>
+                    </div>
                 </div>
                 <div class="connection-status" id="connectionStatus">
                     <span class="status-dot"></span>
@@ -30,15 +35,16 @@
                     <option value="168">Last 7 Days</option>
                     <option value="720">Last 30 Days</option>
                 </select>
+                <button class="btn-refresh" onclick="window.dashboard.loadData()" title="Refresh">↺</button>
             </div>
         </header>
 
-        <!-- Main Stats -->
+        <!-- ── Top KPI Cards ───────────────────────────────────────────── -->
         <section class="stats-grid">
             <div class="stat-card primary">
                 <div class="stat-label">TOTAL COST</div>
                 <div class="stat-value" id="totalCost">$0.00</div>
-                <div class="stat-sublabel">IN SELECTED PERIOD</div>
+                <div class="stat-sublabel" id="totalCostSub">IN SELECTED PERIOD</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">REQUESTS</div>
@@ -46,19 +52,29 @@
                 <div class="stat-sublabel">API CALLS</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">TOKENS</div>
+                <div class="stat-label">TOTAL TOKENS</div>
                 <div class="stat-value" id="totalTokens">0</div>
-                <div class="stat-sublabel">TOTAL PROCESSED</div>
+                <div class="stat-sublabel">IN / OUT PROCESSED</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">AVG COST</div>
+                <div class="stat-label">AVG COST / REQ</div>
                 <div class="stat-value" id="avgCost">$0.000</div>
-                <div class="stat-sublabel">PER REQUEST</div>
+                <div class="stat-sublabel">PER API CALL</div>
+            </div>
+            <div class="stat-card accent-blue">
+                <div class="stat-label">AVG LATENCY</div>
+                <div class="stat-value" id="avgLatency">— ms</div>
+                <div class="stat-sublabel">RESPONSE TIME</div>
+            </div>
+            <div class="stat-card accent-orange">
+                <div class="stat-label">LAST HOUR COST</div>
+                <div class="stat-value" id="hourCost">$0.00</div>
+                <div class="stat-sublabel">REAL-TIME BURN</div>
             </div>
         </section>
 
-        <!-- Alerts -->
-        <section class="alerts" id="alertsSection" style="display: none;">
+        <!-- ── Alert ───────────────────────────────────────────────────── -->
+        <section class="alerts" id="alertsSection" style="display:none;">
             <div class="alert-card" id="alertCard">
                 <div class="alert-icon">⚠</div>
                 <div class="alert-content">
@@ -69,58 +85,166 @@
             </div>
         </section>
 
-        <!-- Two Column Layout -->
-        <div class="two-columns">
-            <!-- Left Column -->
-            <div class="column">
-                <!-- Cost by Agent -->
-                <section class="panel">
-                    <div class="panel-header">
-                        <h2>COST BY AGENT</h2>
-                    </div>
-                    <div class="panel-content" id="agentCosts">
-                        <div class="empty-state">No agent data yet</div>
-                    </div>
-                </section>
+        <!-- ── Tabs ────────────────────────────────────────────────────── -->
+        <div class="tabs">
+            <button class="tab active" data-tab="overview">📊 Overview</button>
+            <button class="tab" data-tab="providers">🏢 Providers</button>
+            <button class="tab" data-tab="models">🤖 Models</button>
+            <button class="tab" data-tab="agents">🧑‍💼 Agents</button>
+            <button class="tab" data-tab="prompts">💬 Prompts</button>
+            <button class="tab" data-tab="catalog">📋 Catalog</button>
+        </div>
 
-                <!-- Expensive Prompts -->
-                <section class="panel">
-                    <div class="panel-header">
-                        <h2>EXPENSIVE PROMPTS</h2>
-                        <span class="badge">TOP 5</span>
-                    </div>
-                    <div class="panel-content" id="expensivePrompts">
-                        <div class="empty-state">No prompt data yet</div>
-                    </div>
-                </section>
-            </div>
+        <!-- ── Tab: Overview ──────────────────────────────────────────── -->
+        <div class="tab-content active" id="tab-overview">
+            <div class="two-columns">
+                <!-- Left: Trend Chart + Suggestions -->
+                <div class="column">
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>COST TREND</h2>
+                            <span class="badge" id="trendBadge">24H</span>
+                        </div>
+                        <div class="panel-content chart-container">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </section>
 
-            <!-- Right Column -->
-            <div class="column">
-                <!-- Optimization Suggestions -->
-                <section class="panel suggestions-panel">
-                    <div class="panel-header">
-                        <h2>OPTIMIZATION SUGGESTIONS</h2>
-                    </div>
-                    <div class="panel-content" id="suggestions">
-                        <div class="empty-state">Analyzing usage patterns...</div>
-                    </div>
-                </section>
+                    <section class="panel suggestions-panel">
+                        <div class="panel-header">
+                            <h2>OPTIMIZATION SUGGESTIONS</h2>
+                            <span class="badge" id="suggCount">0</span>
+                        </div>
+                        <div class="panel-content" id="suggestions">
+                            <div class="empty-state">Analysing usage patterns…</div>
+                        </div>
+                    </section>
+                </div>
 
-                <!-- Live Feed -->
-                <section class="panel">
-                    <div class="panel-header">
-                        <h2>LIVE FEED</h2>
-                        <span class="live-indicator">● LIVE</span>
-                    </div>
-                    <div class="panel-content live-feed" id="liveFeed">
-                        <div class="empty-state">Waiting for activity...</div>
-                    </div>
-                </section>
+                <!-- Right: Provider doughnut + Live Feed -->
+                <div class="column">
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>COST BY PROVIDER</h2>
+                        </div>
+                        <div class="panel-content chart-container-sm">
+                            <canvas id="providerChart"></canvas>
+                        </div>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>LIVE FEED</h2>
+                            <span class="live-indicator">● LIVE</span>
+                        </div>
+                        <div class="panel-content live-feed" id="liveFeed">
+                            <div class="empty-state">Waiting for activity…</div>
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
-    </div>
+
+        <!-- ── Tab: Providers ─────────────────────────────────────────── -->
+        <div class="tab-content" id="tab-providers">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>COST BY PROVIDER</h2>
+                    <span class="badge" id="providerCount">0</span>
+                </div>
+                <div class="panel-content" id="providerBreakdown">
+                    <div class="empty-state">No provider data yet</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ── Tab: Models ────────────────────────────────────────────── -->
+        <div class="tab-content" id="tab-models">
+            <div class="two-columns">
+                <div class="column">
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>COST BY MODEL</h2>
+                            <span class="badge" id="modelCount">0</span>
+                        </div>
+                        <div class="panel-content" id="modelBreakdown">
+                            <div class="empty-state">No model data yet</div>
+                        </div>
+                    </section>
+                </div>
+                <div class="column">
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>MODEL COST SHARE</h2>
+                        </div>
+                        <div class="panel-content chart-container-sm">
+                            <canvas id="modelChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Tab: Agents ────────────────────────────────────────────── -->
+        <div class="tab-content" id="tab-agents">
+            <div class="two-columns">
+                <div class="column">
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>COST BY AGENT</h2>
+                        </div>
+                        <div class="panel-content" id="agentCosts">
+                            <div class="empty-state">No agent data yet</div>
+                        </div>
+                    </section>
+                </div>
+                <div class="column">
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>COST BY TASK</h2>
+                        </div>
+                        <div class="panel-content" id="taskCosts">
+                            <div class="empty-state">No task data yet</div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Tab: Prompts ───────────────────────────────────────────── -->
+        <div class="tab-content" id="tab-prompts">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>EXPENSIVE PROMPTS</h2>
+                    <span class="badge">TOP 10</span>
+                </div>
+                <div class="panel-content" id="expensivePrompts">
+                    <div class="empty-state">No prompt data yet</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ── Tab: Catalog ───────────────────────────────────────────── -->
+        <div class="tab-content" id="tab-catalog">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>MODEL CATALOG</h2>
+                    <div class="catalog-filters">
+                        <input id="catalogSearch" class="catalog-search" type="text" placeholder="Search models…">
+                        <select id="catalogProvider" class="time-select">
+                            <option value="">All Providers</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="panel-content" id="catalogTable">
+                    <div class="empty-state">Loading catalog…</div>
+                </div>
+            </section>
+        </div>
+
+    </div><!-- /dashboard -->
 
     <script src="/static/app.js"></script>
 </body>
 </html>
+

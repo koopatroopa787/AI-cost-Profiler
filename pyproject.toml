@@ -39,6 +39,9 @@ dev = [
     "httpx>=0.26.0",
 ]
 
+[project.scripts]
+ai-cost = "ai_cost_profiler.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/ai-cost-profiler/ai-cost-profiler"
 Documentation = "https://github.com/ai-cost-profiler/ai-cost-profiler#readme"

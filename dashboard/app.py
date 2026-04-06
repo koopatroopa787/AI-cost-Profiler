@@ -5,7 +5,7 @@ import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Any, Dict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.staticfiles import StaticFiles
@@ -17,37 +17,37 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from ai_cost_profiler import CostTracker, UsageRecord
 from ai_cost_profiler.models import Provider
+from ai_cost_profiler.pricing import PROVIDER_INFO
 
 
 # WebSocket connection manager
 class ConnectionManager:
     """Manage WebSocket connections for real-time updates."""
-    
+
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
-    
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.add(websocket)
-    
+
     def disconnect(self, websocket: WebSocket):
         self.active_connections.discard(websocket)
-    
+
     async def broadcast(self, message: dict):
         """Broadcast message to all connected clients."""
         if not self.active_connections:
             return
-        
+
         data = json.dumps(message, default=str)
         disconnected = set()
-        
+
         for connection in self.active_connections:
             try:
                 await connection.send_text(data)
             except Exception:
                 disconnected.add(connection)
-        
-        # Clean up disconnected
+
         for conn in disconnected:
             self.active_connections.discard(conn)
 
@@ -62,8 +62,7 @@ def get_tracker() -> CostTracker:
     global tracker
     if tracker is None:
         tracker = CostTracker(db_path="ai_costs.db")
-        
-        # Add WebSocket broadcast callback
+
         def broadcast_callback(record: UsageRecord):
             asyncio.create_task(manager.broadcast({
                 "type": "new_record",
@@ -73,20 +72,24 @@ def get_tracker() -> CostTracker:
                     "agent": record.agent,
                     "task": record.task,
                     "model": record.model,
+                    "provider": record.provider.value,
+                    "input_tokens": record.input_tokens,
+                    "output_tokens": record.output_tokens,
                     "tokens": record.total_tokens,
-                    "cost": round(record.total_cost, 6)
+                    "cost": round(record.total_cost, 6),
+                    "latency_ms": record.latency_ms,
                 }
             }))
-        
+
         tracker.add_realtime_callback(broadcast_callback)
-    
+
     return tracker
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-    get_tracker()  # Initialize tracker on startup
+    get_tracker()
     yield
 
 
@@ -95,22 +98,22 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="AI Cost Profiler Dashboard",
         description="Real-time cost monitoring for AI agent applications",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan
     )
-    
-    # Mount static files
+
     static_path = Path(__file__).parent / "static"
     if static_path.exists():
         app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
-    
+
     return app
 
 
 app = create_app()
 
 
-# Response models
+# ── Response models ──────────────────────────────────────────────────────────
+
 class CostSummaryResponse(BaseModel):
     total_cost: float
     total_tokens: int
@@ -138,6 +141,35 @@ class TaskCostResponse(BaseModel):
     avg_cost_per_request: float
 
 
+class ModelCostResponse(BaseModel):
+    model: str
+    provider: str
+    provider_name: str
+    provider_icon: str
+    total_cost: float
+    input_cost: float
+    output_cost: float
+    total_tokens: int
+    input_tokens: int
+    output_tokens: int
+    request_count: int
+    avg_cost: float
+    avg_latency_ms: Optional[float] = None
+
+
+class ProviderCostResponse(BaseModel):
+    provider: str
+    provider_name: str
+    provider_icon: str
+    provider_url: str
+    total_cost: float
+    total_tokens: int
+    request_count: int
+    avg_cost: float
+    model_count: int
+    avg_latency_ms: Optional[float] = None
+
+
 class ExpensivePromptResponse(BaseModel):
     prompt_hash: str
     prompt_preview: str
@@ -163,7 +195,19 @@ class OptimizationResponse(BaseModel):
     suggested_model: Optional[str] = None
 
 
-# API Routes
+class ModelCatalogEntry(BaseModel):
+    model: str
+    provider: str
+    input_per_1m: float
+    output_per_1m: float
+    context_window: int
+    supports_vision: bool
+    supports_tools: bool
+    description: str
+
+
+# ── Routes ───────────────────────────────────────────────────────────────────
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """Serve the dashboard HTML."""
@@ -176,7 +220,7 @@ async def root():
 @app.get("/api/health")
 async def health():
     """Health check endpoint."""
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat(), "version": "0.2.0"}
 
 
 @app.get("/api/costs/summary", response_model=CostSummaryResponse)
@@ -187,7 +231,7 @@ async def get_cost_summary(
     t = get_tracker()
     start_time = datetime.utcnow() - timedelta(hours=hours)
     summary = t.analytics.get_summary(start_time=start_time)
-    
+
     return CostSummaryResponse(
         total_cost=round(summary.total_cost, 4),
         total_tokens=summary.total_tokens,
@@ -207,7 +251,7 @@ async def get_costs_by_agent(
     t = get_tracker()
     start_time = datetime.utcnow() - timedelta(hours=hours)
     agents = t.analytics.get_costs_by_agent(start_time=start_time)
-    
+
     return [
         AgentCostResponse(
             agent=a.agent,
@@ -228,18 +272,83 @@ async def get_costs_by_task(
     t = get_tracker()
     start_time = datetime.utcnow() - timedelta(hours=hours)
     tasks = t.analytics.get_costs_by_task(start_time=start_time)
-    
+
     return [
         TaskCostResponse(
-            task=t.task,
-            agent=t.agent,
-            total_cost=round(t.total_cost, 4),
-            total_tokens=t.total_tokens,
-            request_count=t.request_count,
-            avg_cost_per_request=round(t.avg_cost_per_request, 6)
+            task=tk.task,
+            agent=tk.agent,
+            total_cost=round(tk.total_cost, 4),
+            total_tokens=tk.total_tokens,
+            request_count=tk.request_count,
+            avg_cost_per_request=round(tk.avg_cost_per_request, 6)
         )
-        for t in tasks
+        for tk in tasks
     ]
+
+
+@app.get("/api/costs/by-model", response_model=List[ModelCostResponse])
+async def get_costs_by_model(
+    hours: int = Query(24, ge=1, le=720, description="Hours to look back")
+):
+    """Get cost breakdown by model."""
+    t = get_tracker()
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    rows = t.analytics.get_costs_by_model(start_time=start_time)
+
+    return [
+        ModelCostResponse(
+            model=r["model"],
+            provider=r.get("provider", "custom"),
+            provider_name=r.get("provider_name", r.get("provider", "custom")),
+            provider_icon=r.get("provider_icon", "⚙️"),
+            total_cost=round(r["total_cost"], 6),
+            input_cost=round(r.get("input_cost", 0), 6),
+            output_cost=round(r.get("output_cost", 0), 6),
+            total_tokens=r.get("total_tokens", 0),
+            input_tokens=r.get("input_tokens", 0),
+            output_tokens=r.get("output_tokens", 0),
+            request_count=r["request_count"],
+            avg_cost=round(r["avg_cost"], 6),
+            avg_latency_ms=round(r["avg_latency_ms"], 0) if r.get("avg_latency_ms") else None,
+        )
+        for r in rows
+    ]
+
+
+@app.get("/api/costs/by-provider", response_model=List[ProviderCostResponse])
+async def get_costs_by_provider(
+    hours: int = Query(24, ge=1, le=720, description="Hours to look back")
+):
+    """Get cost breakdown by provider."""
+    t = get_tracker()
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    rows = t.analytics.get_costs_by_provider(start_time=start_time)
+
+    return [
+        ProviderCostResponse(
+            provider=r["provider"],
+            provider_name=r.get("provider_name", r["provider"]),
+            provider_icon=r.get("provider_icon", "⚙️"),
+            provider_url=r.get("provider_url", ""),
+            total_cost=round(r["total_cost"], 4),
+            total_tokens=r.get("total_tokens", 0),
+            request_count=r["request_count"],
+            avg_cost=round(r["avg_cost"], 6),
+            model_count=r.get("model_count", 1),
+            avg_latency_ms=round(r["avg_latency_ms"], 0) if r.get("avg_latency_ms") else None,
+        )
+        for r in rows
+    ]
+
+
+@app.get("/api/costs/trend")
+async def get_cost_trend(
+    hours: int = Query(24, ge=1, le=720, description="Hours to look back")
+):
+    """Get hourly cost trend for charting."""
+    t = get_tracker()
+    rows = t.analytics.get_hourly_trend(hours=hours)
+    return rows
 
 
 @app.get("/api/costs/expensive-prompts", response_model=List[ExpensivePromptResponse])
@@ -251,7 +360,7 @@ async def get_expensive_prompts(
     t = get_tracker()
     start_time = datetime.utcnow() - timedelta(hours=hours)
     prompts = t.analytics.get_expensive_prompts(start_time=start_time, limit=limit)
-    
+
     return [
         ExpensivePromptResponse(
             prompt_hash=p.prompt_hash,
@@ -277,7 +386,7 @@ async def get_suggestions(
     t = get_tracker()
     start_time = datetime.utcnow() - timedelta(hours=hours)
     suggestions = t.analytics.get_optimization_suggestions(start_time=start_time)
-    
+
     return [
         OptimizationResponse(
             type=s.type,
@@ -301,7 +410,47 @@ async def get_realtime_stats():
     return t.analytics.get_realtime_stats()
 
 
-# Record usage endpoint (for testing/demo)
+@app.get("/api/models/catalog", response_model=List[ModelCatalogEntry])
+async def get_models_catalog(
+    provider: Optional[str] = Query(None, description="Filter by provider key")
+):
+    """List all known AI models with their pricing."""
+    t = get_tracker()
+    models = t.pricing.list_models(provider=provider)
+    return [ModelCatalogEntry(**m) for m in models]
+
+
+@app.get("/api/models/providers")
+async def get_providers_info():
+    """List all supported providers."""
+    return [
+        {"key": k, **v}
+        for k, v in PROVIDER_INFO.items()
+    ]
+
+
+@app.get("/api/costs/latency")
+async def get_latency_stats(
+    hours: int = Query(24, ge=1, le=720, description="Hours to look back")
+):
+    """Get latency statistics."""
+    t = get_tracker()
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    return t.analytics.get_latency_stats(start_time=start_time)
+
+
+@app.get("/api/costs/by-user")
+async def get_costs_by_user(
+    hours: int = Query(24, ge=1, le=720, description="Hours to look back")
+):
+    """Get cost breakdown by user."""
+    t = get_tracker()
+    start_time = datetime.utcnow() - timedelta(hours=hours)
+    return t.analytics.get_user_costs(start_time=start_time)
+
+
+# ── Record usage endpoint ────────────────────────────────────────────────────
+
 class RecordUsageRequest(BaseModel):
     agent: str
     task: str
@@ -311,15 +460,17 @@ class RecordUsageRequest(BaseModel):
     provider: str = "openai"
     user: Optional[str] = None
     prompt: Optional[str] = None
+    latency_ms: Optional[int] = None
 
 
 @app.post("/api/record")
 async def record_usage(request: RecordUsageRequest):
-    """Record a usage event (for testing/demo)."""
+    """Record a usage event."""
     t = get_tracker()
-    
-    provider = Provider(request.provider) if request.provider in [p.value for p in Provider] else Provider.OPENAI
-    
+
+    valid_providers = {p.value for p in Provider}
+    provider = Provider(request.provider) if request.provider in valid_providers else Provider.CUSTOM
+
     record = t.record(
         agent=request.agent,
         task=request.task,
@@ -328,44 +479,42 @@ async def record_usage(request: RecordUsageRequest):
         output_tokens=request.output_tokens,
         provider=provider,
         user=request.user,
-        prompt=request.prompt
+        prompt=request.prompt,
+        latency_ms=request.latency_ms,
     )
-    
+
     return {
         "id": record.id,
         "cost": round(record.total_cost, 6),
+        "input_cost": round(record.input_cost, 6),
+        "output_cost": round(record.output_cost, 6),
         "message": "Usage recorded successfully"
     }
 
 
-# WebSocket endpoint for real-time updates
+# ── WebSocket ────────────────────────────────────────────────────────────────
+
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time cost updates."""
     await manager.connect(websocket)
-    
+
     try:
-        # Send initial stats
         t = get_tracker()
         stats = t.analytics.get_realtime_stats()
         await websocket.send_json({"type": "initial", "data": stats})
-        
-        # Keep connection alive and handle incoming messages
+
         while True:
             try:
-                # Wait for ping/pong or commands
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-                
                 if data == "ping":
                     await websocket.send_text("pong")
                 elif data == "refresh":
                     stats = t.analytics.get_realtime_stats()
                     await websocket.send_json({"type": "refresh", "data": stats})
-                    
             except asyncio.TimeoutError:
-                # Send heartbeat
                 await websocket.send_text("heartbeat")
-                
+
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
@@ -373,3 +522,4 @@ async def websocket_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
+

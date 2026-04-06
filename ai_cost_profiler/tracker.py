@@ -161,38 +161,19 @@ class CostTracker:
         prompt: Optional[str] = None,
         latency_ms: Optional[int] = None
     ) -> UsageRecord:
-        """
-        Record usage from an OpenAI API response.
-        
-        Args:
-            response: OpenAI ChatCompletion response object
-            agent: Name of the agent
-            task: Task being performed
-            user: Optional user identifier
-            prompt: Optional prompt text
-            latency_ms: Optional response latency
-        
-        Returns:
-            The created UsageRecord
-        """
+        """Record usage from an OpenAI API response object."""
         usage = getattr(response, "usage", None)
         model = getattr(response, "model", "gpt-4o")
-        
+
         input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
         output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-        
+
         return self.record(
-            agent=agent,
-            task=task,
-            model=model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            provider=Provider.OPENAI,
-            user=user,
-            prompt=prompt,
-            latency_ms=latency_ms
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.OPENAI, user=user, prompt=prompt, latency_ms=latency_ms
         )
-    
+
     def record_anthropic_response(
         self,
         response: Any,
@@ -202,36 +183,206 @@ class CostTracker:
         prompt: Optional[str] = None,
         latency_ms: Optional[int] = None
     ) -> UsageRecord:
-        """
-        Record usage from an Anthropic API response.
-        
-        Args:
-            response: Anthropic Message response object
-            agent: Name of the agent
-            task: Task being performed
-            user: Optional user identifier
-            prompt: Optional prompt text
-            latency_ms: Optional response latency
-        
-        Returns:
-            The created UsageRecord
-        """
+        """Record usage from an Anthropic API response object."""
         usage = getattr(response, "usage", None)
         model = getattr(response, "model", "claude-3-5-sonnet")
-        
+
         input_tokens = getattr(usage, "input_tokens", 0) if usage else 0
         output_tokens = getattr(usage, "output_tokens", 0) if usage else 0
-        
+
         return self.record(
-            agent=agent,
-            task=task,
-            model=model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            provider=Provider.ANTHROPIC,
-            user=user,
-            prompt=prompt,
-            latency_ms=latency_ms
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.ANTHROPIC, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_google_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        model: str = "gemini-2.0-flash",
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from a Google Gemini API response object."""
+        # Try to extract from usage_metadata (google-generativeai SDK)
+        usage = getattr(response, "usage_metadata", None)
+        if usage:
+            input_tokens = getattr(usage, "prompt_token_count", 0) or 0
+            output_tokens = getattr(usage, "candidates_token_count", 0) or 0
+        else:
+            input_tokens = 0
+            output_tokens = 0
+
+        detected_model = getattr(response, "model", None) or model
+
+        return self.record(
+            agent=agent, task=task, model=detected_model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.GOOGLE, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_mistral_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from a Mistral API response object."""
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "mistral-large")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.MISTRAL, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_cohere_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from a Cohere API response object."""
+        meta = getattr(response, "meta", None)
+        tokens = getattr(meta, "tokens", None) if meta else None
+
+        input_tokens = getattr(tokens, "input_tokens", 0) if tokens else 0
+        output_tokens = getattr(tokens, "output_tokens", 0) if tokens else 0
+        model = getattr(response, "model", "command-r")
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.COHERE, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_deepseek_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from a DeepSeek API response (OpenAI-compatible format)."""
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "deepseek-chat")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.DEEPSEEK, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_groq_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from a Groq API response (OpenAI-compatible format)."""
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "llama-3.3-70b-versatile")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.GROQ, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_xai_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from an xAI (Grok) API response (OpenAI-compatible format)."""
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "grok-2")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.XAI, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_together_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from a Together AI response (OpenAI-compatible format)."""
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "meta-llama/Llama-3.3-70B-Instruct-Turbo")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.TOGETHER, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_generic_openai_compatible(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        provider: Provider = Provider.CUSTOM,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """
+        Record usage from any OpenAI-compatible API response.
+
+        Works with Groq, Together AI, xAI, DeepSeek, Perplexity, Fireworks,
+        Azure OpenAI, and any other provider using the OpenAI response format.
+        """
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "unknown")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=provider, user=user, prompt=prompt, latency_ms=latency_ms
         )
     
     def track(
@@ -243,14 +394,11 @@ class CostTracker:
     ) -> Callable:
         """
         Decorator for tracking LLM calls in a function.
-        
-        Note: The decorated function should return an OpenAI or Anthropic response
-        object with a `usage` attribute for automatic token extraction.
-        
-        Usage:
-            @tracker.track(agent="support", task="answer")
-            def my_function():
-                return openai.chat.completions.create(...)
+
+        The decorated function should return an API response object with a
+        `usage` attribute for automatic token extraction. Works with OpenAI,
+        Anthropic, Google, Mistral, DeepSeek, Groq, xAI, Together AI, and
+        any other OpenAI-compatible provider.
         """
         def decorator(func: Callable) -> Callable:
             @functools.wraps(func)
@@ -258,59 +406,45 @@ class CostTracker:
                 start_time = time.time()
                 result = func(*args, **kwargs)
                 latency_ms = int((time.time() - start_time) * 1000)
-                
-                # Try to extract usage from response
-                if hasattr(result, "usage"):
-                    if provider == Provider.OPENAI:
-                        self.record_openai_response(
-                            response=result,
-                            agent=agent,
-                            task=task,
-                            user=user,
-                            latency_ms=latency_ms
-                        )
-                    elif provider == Provider.ANTHROPIC:
-                        self.record_anthropic_response(
-                            response=result,
-                            agent=agent,
-                            task=task,
-                            user=user,
-                            latency_ms=latency_ms
-                        )
-                
+                self._record_from_response(result, agent, task, provider, user, latency_ms)
                 return result
-            
+
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 start_time = time.time()
                 result = await func(*args, **kwargs)
                 latency_ms = int((time.time() - start_time) * 1000)
-                
-                if hasattr(result, "usage"):
-                    if provider == Provider.OPENAI:
-                        self.record_openai_response(
-                            response=result,
-                            agent=agent,
-                            task=task,
-                            user=user,
-                            latency_ms=latency_ms
-                        )
-                    elif provider == Provider.ANTHROPIC:
-                        self.record_anthropic_response(
-                            response=result,
-                            agent=agent,
-                            task=task,
-                            user=user,
-                            latency_ms=latency_ms
-                        )
-                
+                self._record_from_response(result, agent, task, provider, user, latency_ms)
                 return result
-            
+
             if asyncio.iscoroutinefunction(func):
                 return async_wrapper
             return wrapper
-        
+
         return decorator
+
+    def _record_from_response(
+        self,
+        result: Any,
+        agent: str,
+        task: str,
+        provider: Provider,
+        user: Optional[str],
+        latency_ms: int
+    ) -> Optional[UsageRecord]:
+        """Auto-detect and record from any supported API response format."""
+        if not hasattr(result, "usage") and not hasattr(result, "usage_metadata"):
+            return None
+
+        if provider == Provider.ANTHROPIC:
+            return self.record_anthropic_response(result, agent, task, user=user, latency_ms=latency_ms)
+        elif provider == Provider.GOOGLE:
+            return self.record_google_response(result, agent, task, user=user, latency_ms=latency_ms)
+        elif provider == Provider.COHERE:
+            return self.record_cohere_response(result, agent, task, user=user, latency_ms=latency_ms)
+        else:
+            # All OpenAI-compatible providers (OpenAI, DeepSeek, Groq, xAI, Together, Mistral, etc.)
+            return self.record_generic_openai_compatible(result, agent, task, provider, user=user, latency_ms=latency_ms)
     
     @contextmanager
     def track_context(
@@ -379,33 +513,11 @@ class TrackingContext:
         return int((time.time() - self.start_time) * 1000)
     
     def record_response(self, response: Any, prompt: Optional[str] = None) -> UsageRecord:
-        """Record a response within this context."""
+        """Record a response within this context. Works with all supported providers."""
         latency_ms = self.get_latency_ms()
-        
-        if self.provider == Provider.OPENAI:
-            return self.tracker.record_openai_response(
-                response=response,
-                agent=self.agent,
-                task=self.task,
-                user=self.user,
-                prompt=prompt,
-                latency_ms=latency_ms
-            )
-        elif self.provider == Provider.ANTHROPIC:
-            return self.tracker.record_anthropic_response(
-                response=response,
-                agent=self.agent,
-                task=self.task,
-                user=self.user,
-                prompt=prompt,
-                latency_ms=latency_ms
-            )
-        else:
-            # Generic recording - need manual token counts
-            raise ValueError(
-                f"Provider {self.provider} requires manual token counting. "
-                f"Use tracker.record() directly with token counts."
-            )
+        return self.tracker._record_from_response(
+            response, self.agent, self.task, self.provider, self.user, latency_ms
+        ) or self.record_manual(0, 0, prompt)
     
     def record_manual(
         self,
