@@ -23,7 +23,7 @@ class ModelPricing:
         return input_cost, output_cost
 
 
-# Current pricing as of April 2026 (USD per 1M tokens)
+# Current pricing as of June 2026 (USD per 1M tokens)
 # Sources: official provider pricing pages
 DEFAULT_PRICING: Dict[str, ModelPricing] = {
 
@@ -105,6 +105,10 @@ DEFAULT_PRICING: Dict[str, ModelPricing] = {
                                    "Gemini 1.0 Pro – legacy"),
 
     # ── Mistral AI ───────────────────────────────────────────────────────────
+    "mistral-medium-3": ModelPricing(0.40, 2.00, "mistral", 128_000, False, True,
+                                     "Mistral Medium 3 (May 2026)"),
+    "mistral-small-3.1": ModelPricing(0.10, 0.30, "mistral", 128_000, True, True,
+                                      "Mistral Small 3.1 – 24B vision model (Mar 2026)"),
     "mistral-large-2": ModelPricing(2.00, 6.00, "mistral", 128_000, False, True,
                                     "Mistral Large 2 – flagship"),
     "mistral-large": ModelPricing(2.00, 6.00, "mistral", 32_000, False, True,
@@ -171,6 +175,10 @@ DEFAULT_PRICING: Dict[str, ModelPricing] = {
                                    "AI21 Jamba Instruct"),
 
     # ── Groq (fast inference) ────────────────────────────────────────────────
+    "meta-llama/llama-4-scout-17b-16e-instruct": ModelPricing(0.11, 0.34, "groq", 131_072, True, True,
+                                                               "Llama 4 Scout 17B via Groq (Apr 2026)"),
+    "meta-llama/llama-4-maverick-17b-128e-instruct": ModelPricing(0.50, 0.77, "groq", 131_072, True, True,
+                                                                   "Llama 4 Maverick 17B via Groq (Apr 2026)"),
     "llama-3.3-70b-versatile": ModelPricing(0.59, 0.79, "groq", 128_000, False, True,
                                             "Llama 3.3 70B via Groq"),
     "llama-3.1-8b-instant": ModelPricing(0.05, 0.08, "groq", 128_000, False, True,
@@ -181,6 +189,10 @@ DEFAULT_PRICING: Dict[str, ModelPricing] = {
                                  "Gemma 2 9B IT via Groq"),
 
     # ── Together AI ──────────────────────────────────────────────────────────
+    "meta-llama/Llama-4-Scout-17B-16E-Instruct-Turbo": ModelPricing(0.18, 0.59, "together", 131_072, True, True,
+                                                                    "Llama 4 Scout 17B Turbo via Together (Apr 2026)"),
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-Turbo": ModelPricing(0.27, 0.85, "together", 131_072, True, True,
+                                                                         "Llama 4 Maverick 17B Turbo via Together (Apr 2026)"),
     "meta-llama/Llama-3.3-70B-Instruct-Turbo": ModelPricing(0.88, 0.88, "together", 131_072, False, True,
                                                               "Llama 3.3 70B Turbo via Together"),
     "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo": ModelPricing(0.18, 0.18, "together", 128_000, False, True,
@@ -209,6 +221,10 @@ DEFAULT_PRICING: Dict[str, ModelPricing] = {
                           "Perplexity Sonar"),
 
     # ── Meta Llama (self-hosted reference pricing) ───────────────────────────
+    "llama-4-scout": ModelPricing(0.18, 0.59, "meta", 131_072, True, True,
+                                  "Llama 4 Scout 17Bx16E – 10M context MoE (Apr 2026)"),
+    "llama-4-maverick": ModelPricing(0.27, 0.85, "meta", 131_072, True, True,
+                                     "Llama 4 Maverick 17Bx128E – 1M context MoE (Apr 2026)"),
     "llama-3.2-1b-instruct": ModelPricing(0.04, 0.04, "meta", 128_000, False, False,
                                           "Llama 3.2 1B Instruct – tiny"),
     "llama-3.2-3b-instruct": ModelPricing(0.06, 0.06, "meta", 128_000, False, False,
@@ -241,6 +257,8 @@ DEFAULT_PRICING: Dict[str, ModelPricing] = {
                                                  "Amazon Titan Text Express"),
     "amazon.titan-text-lite-v1": ModelPricing(0.30, 0.40, "amazon", 4_000, False, False,
                                               "Amazon Titan Text Lite"),
+    "amazon.nova-premier-v1": ModelPricing(2.50, 12.50, "amazon", 300_000, True, True,
+                                          "Amazon Nova Premier – most capable Bedrock (Apr 2026)"),
     "amazon.nova-pro-v1": ModelPricing(0.80, 3.20, "amazon", 300_000, True, True,
                                        "Amazon Nova Pro"),
     "amazon.nova-lite-v1": ModelPricing(0.06, 0.24, "amazon", 300_000, True, True,

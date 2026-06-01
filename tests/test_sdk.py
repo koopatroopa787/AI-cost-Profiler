@@ -69,6 +69,85 @@ class TestPricingEngine:
         assert alternatives[0]["savings_percent"] > 0
 
 
+class TestNewModels2026:
+    """Tests for models added in the June 2026 pricing update."""
+
+    def test_llama4_scout_groq(self):
+        engine = PricingEngine()
+        pricing = engine.get_model_pricing("meta-llama/llama-4-scout-17b-16e-instruct")
+        assert pricing is not None
+        assert pricing.provider == "groq"
+        assert pricing.input_price == pytest.approx(0.11)
+        assert pricing.output_price == pytest.approx(0.34)
+        assert pricing.supports_vision is True
+
+    def test_llama4_maverick_groq(self):
+        engine = PricingEngine()
+        pricing = engine.get_model_pricing("meta-llama/llama-4-maverick-17b-128e-instruct")
+        assert pricing is not None
+        assert pricing.provider == "groq"
+        assert pricing.input_price == pytest.approx(0.50)
+        assert pricing.supports_vision is True
+
+    def test_llama4_scout_together(self):
+        engine = PricingEngine()
+        pricing = engine.get_model_pricing("meta-llama/Llama-4-Scout-17B-16E-Instruct-Turbo")
+        assert pricing is not None
+        assert pricing.provider == "together"
+        assert pricing.input_price == pytest.approx(0.18)
+        assert pricing.output_price == pytest.approx(0.59)
+
+    def test_llama4_base_meta(self):
+        engine = PricingEngine()
+        pricing = engine.get_model_pricing("llama-4-scout")
+        assert pricing is not None
+        assert pricing.provider == "meta"
+        assert pricing.context_window == 131_072
+
+    def test_mistral_small_3_1(self):
+        engine = PricingEngine()
+        pricing = engine.get_model_pricing("mistral-small-3.1")
+        assert pricing is not None
+        assert pricing.provider == "mistral"
+        assert pricing.input_price == pytest.approx(0.10)
+        assert pricing.output_price == pytest.approx(0.30)
+        assert pricing.supports_vision is True
+
+    def test_mistral_medium_3(self):
+        engine = PricingEngine()
+        pricing = engine.get_model_pricing("mistral-medium-3")
+        assert pricing is not None
+        assert pricing.provider == "mistral"
+        assert pricing.input_price == pytest.approx(0.40)
+        assert pricing.output_price == pytest.approx(2.00)
+
+    def test_amazon_nova_premier(self):
+        engine = PricingEngine()
+        pricing = engine.get_model_pricing("amazon.nova-premier-v1")
+        assert pricing is not None
+        assert pricing.provider == "amazon"
+        assert pricing.input_price == pytest.approx(2.50)
+        assert pricing.output_price == pytest.approx(12.50)
+        assert pricing.supports_vision is True
+
+    def test_nova_premier_more_expensive_than_nova_pro(self):
+        engine = PricingEngine()
+        premier = engine.get_model_pricing("amazon.nova-premier-v1")
+        pro = engine.get_model_pricing("amazon.nova-pro-v1")
+        assert premier.input_price > pro.input_price
+
+    def test_llama4_cost_calculation(self):
+        engine = PricingEngine()
+        input_cost, output_cost, total = engine.calculate_cost(
+            model="llama-4-scout",
+            input_tokens=1_000_000,
+            output_tokens=500_000,
+        )
+        assert input_cost == pytest.approx(0.18, rel=0.01)
+        assert output_cost == pytest.approx(0.295, rel=0.01)
+        assert total == pytest.approx(0.475, rel=0.01)
+
+
 class TestTokenCounter:
     """Tests for the token counter."""
     
