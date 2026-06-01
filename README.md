@@ -1,6 +1,6 @@
 # AI Cost Profiler
 
-**Universal AI cost tracking SDK for Python — instrument any AI agent in minutes, track spending across 20+ providers and 70+ models in real-time.**
+**Universal AI cost tracking SDK for Python — instrument any AI agent in minutes, track spending across 15 providers and 110+ models in real-time.**
 
 > "Your customer support agent just spent $47 in 10 minutes — switch it to Claude Haiku and save $2K/month."
 
@@ -8,7 +8,7 @@
 
 ## ✨ Features
 
-- 🌐 **Universal compatibility** — 20+ providers, 70+ models tracked out of the box
+- 🌐 **Universal compatibility** — 15 providers, 110+ models tracked out of the box
 - 💰 **Accurate cost calculation** per request, agent, task, user, model, and provider
 - 📊 **Interactive web dashboard** with Chart.js charts, tabs, live feed, and model catalog
 - ⚡ **Real-time WebSocket feed** — see every API call as it happens
@@ -35,7 +35,7 @@ After installation a `ai-cost` command is available:
 
 ```bash
 ai-cost stats           # Show cost statistics
-ai-cost models          # List all 70+ models with pricing
+ai-cost models          # List all 110+ models with pricing
 ai-cost suggestions     # Show optimization suggestions
 ai-cost trend           # Show hourly cost trend
 ai-cost live            # Tail live API activity
@@ -98,20 +98,20 @@ All pricing is bundled — no external API calls needed.
 | **OpenAI** | `openai` | gpt-4o, gpt-4.1, o3-mini, o1, gpt-4o-mini, gpt-4.1-nano |
 | **Anthropic** | `anthropic` | claude-3-5-sonnet, claude-3-opus, claude-3-5-haiku |
 | **Google** | `google` | gemini-2.5-pro, gemini-2.0-flash, gemini-1.5-pro |
-| **Mistral AI** | `mistral` | mistral-large-2, codestral, mixtral-8x22b, mistral-nemo |
+| **Mistral AI** | `mistral` | mistral-medium-3, mistral-small-3.1, mistral-large-2, codestral, mistral-nemo |
 | **DeepSeek** | `deepseek` | deepseek-chat (V3), deepseek-reasoner (R1), deepseek-coder |
 | **xAI (Grok)** | `xai` | grok-3, grok-3-mini, grok-2, grok-2-mini |
 | **Cohere** | `cohere` | command-r-plus, command-r |
 | **AI21 Labs** | `ai21` | jamba-1.5-large, jamba-1.5-mini |
-| **Groq** | `groq` | llama-3.3-70b-versatile, llama-3.1-8b-instant |
-| **Together AI** | `together` | Llama 3.3 70B, Llama 3.1 405B, Qwen 2.5 72B |
+| **Groq** | `groq` | llama-4-scout-17b, llama-4-maverick-17b, llama-3.3-70b-versatile |
+| **Together AI** | `together` | Llama 4 Scout/Maverick, Llama 3.3 70B, Llama 3.1 405B, Qwen 2.5 72B |
 | **Perplexity** | `perplexity` | sonar-pro, sonar, llama-3.1-sonar-huge |
-| **Meta (Llama)** | `meta` | llama-3.2-90b, llama-3.1-405b, llama-3.2-11b |
-| **AWS Bedrock** | `amazon` | nova-pro, nova-lite, nova-micro, titan-text-express |
+| **Meta (Llama)** | `meta` | llama-4-scout, llama-4-maverick, llama-3.2-90b, llama-3.1-405b |
+| **AWS Bedrock** | `amazon` | nova-premier, nova-pro, nova-lite, nova-micro, titan-text-express |
 | **Fireworks AI** | `fireworks` | firefunction-v2, llama-v3p1-70b |
 | **Ollama/Local** | `ollama` | llama3.2, mistral, gemma2, deepseek-r1, phi4 (FREE) |
 
-> **70+ models** tracked in total. See full list: `ai-cost models`
+> **110+ models** tracked in total. See full list: `ai-cost models`
 
 ### Provider helpers
 
@@ -287,7 +287,7 @@ ai_cost_profiler/
 ├── __init__.py       # Package exports (v0.2.0)
 ├── tracker.py        # Main CostTracker class + provider helpers
 ├── models.py         # Data models + expanded Provider enum (21 providers)
-├── pricing.py        # 70+ models with full metadata + PricingEngine
+├── pricing.py        # 113 models across 15 providers + PricingEngine
 ├── token_counter.py  # Token counting (tiktoken)
 ├── storage.py        # SQLite storage + by-model/provider/trend queries
 ├── analytics.py      # Analytics, suggestions, real-time stats
