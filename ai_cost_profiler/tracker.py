@@ -357,6 +357,68 @@ class CostTracker:
             provider=Provider.TOGETHER, user=user, prompt=prompt, latency_ms=latency_ms
         )
 
+    def record_perplexity_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from a Perplexity Sonar API response (OpenAI-compatible format)."""
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "sonar")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.PERPLEXITY, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def estimate_cost_from_text(
+        self,
+        input_text: str,
+        model: str,
+        estimated_output_tokens: int = 500,
+        provider: Provider = Provider.OPENAI,
+    ) -> Dict[str, Any]:
+        """
+        Estimate the cost of an API call before making it.
+
+        Counts tokens in the input text, then calculates expected cost using
+        the model's pricing. Useful for budget checks before sending large prompts.
+
+        Args:
+            input_text: The prompt text to estimate cost for.
+            model: The model name to use for pricing lookup.
+            estimated_output_tokens: Expected number of output tokens (default 500).
+            provider: The provider enum for fallback pricing.
+
+        Returns:
+            A dict with keys: input_tokens, estimated_output_tokens,
+            input_cost, output_cost, total_cost, model, currency.
+        """
+        input_tokens = self.token_counter.count_tokens(input_text)
+        input_cost, output_cost, total_cost = self.pricing.calculate_cost(
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=estimated_output_tokens,
+            provider=provider,
+        )
+        return {
+            "model": model,
+            "input_tokens": input_tokens,
+            "estimated_output_tokens": estimated_output_tokens,
+            "input_cost": round(input_cost, 8),
+            "output_cost": round(output_cost, 8),
+            "total_cost": round(total_cost, 8),
+            "currency": "USD",
+        }
+
     def record_generic_openai_compatible(
         self,
         response: Any,

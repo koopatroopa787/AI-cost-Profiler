@@ -314,6 +314,72 @@ class TestCostTracker:
         assert records[0].agent == "decorator_test"
 
 
+class TestNewTrackerMethods:
+    """Tests for newly added tracker helper methods."""
+
+    def test_record_perplexity_response(self):
+        storage = InMemoryStorage()
+        tracker = CostTracker(storage=storage)
+
+        class MockUsage:
+            prompt_tokens = 200
+            completion_tokens = 100
+
+        class MockResponse:
+            usage = MockUsage()
+            model = "sonar-pro"
+
+        record = tracker.record_perplexity_response(
+            MockResponse(), agent="search_bot", task="web_search"
+        )
+
+        assert record.provider == Provider.PERPLEXITY
+        assert record.model == "sonar-pro"
+        assert record.input_tokens == 200
+        assert record.output_tokens == 100
+        assert record.total_cost > 0
+
+    def test_estimate_cost_from_text_returns_expected_keys(self):
+        tracker = CostTracker()
+        estimate = tracker.estimate_cost_from_text(
+            input_text="Hello, world!",
+            model="gpt-4o",
+            estimated_output_tokens=100,
+        )
+
+        assert "input_tokens" in estimate
+        assert "estimated_output_tokens" in estimate
+        assert "input_cost" in estimate
+        assert "output_cost" in estimate
+        assert "total_cost" in estimate
+        assert "currency" in estimate
+        assert estimate["currency"] == "USD"
+        assert estimate["model"] == "gpt-4o"
+
+    def test_estimate_cost_from_text_token_count(self):
+        tracker = CostTracker()
+        short = tracker.estimate_cost_from_text("Hi", "gpt-4o", 0)
+        long = tracker.estimate_cost_from_text("Hello " * 100, "gpt-4o", 0)
+        assert long["input_tokens"] > short["input_tokens"]
+
+    def test_estimate_cost_from_text_total_equals_sum(self):
+        tracker = CostTracker()
+        estimate = tracker.estimate_cost_from_text(
+            "Test prompt for cost estimation.",
+            model="gpt-4o",
+            estimated_output_tokens=200,
+        )
+        assert estimate["total_cost"] == pytest.approx(
+            estimate["input_cost"] + estimate["output_cost"], rel=1e-6
+        )
+
+    def test_estimate_cost_from_text_expensive_model_costs_more(self):
+        tracker = CostTracker()
+        cheap = tracker.estimate_cost_from_text("Same prompt", "gpt-4o-mini", 100)
+        expensive = tracker.estimate_cost_from_text("Same prompt", "gpt-4", 100)
+        assert expensive["total_cost"] > cheap["total_cost"]
+
+
 class TestAnalytics:
     """Tests for the analytics engine."""
     
