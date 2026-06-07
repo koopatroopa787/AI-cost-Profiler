@@ -379,6 +379,50 @@ class CostTracker:
             provider=Provider.PERPLEXITY, user=user, prompt=prompt, latency_ms=latency_ms
         )
 
+    def record_fireworks_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from a Fireworks AI response (OpenAI-compatible format)."""
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "accounts/fireworks/models/llama-v3p1-70b-instruct")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.FIREWORKS, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
+    def record_openrouter_response(
+        self,
+        response: Any,
+        agent: str,
+        task: str,
+        user: Optional[str] = None,
+        prompt: Optional[str] = None,
+        latency_ms: Optional[int] = None
+    ) -> UsageRecord:
+        """Record usage from an OpenRouter API response (OpenAI-compatible format)."""
+        usage = getattr(response, "usage", None)
+        model = getattr(response, "model", "openrouter/auto")
+
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+
+        return self.record(
+            agent=agent, task=task, model=model,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            provider=Provider.OPENROUTER, user=user, prompt=prompt, latency_ms=latency_ms
+        )
+
     def estimate_cost_from_text(
         self,
         input_text: str,

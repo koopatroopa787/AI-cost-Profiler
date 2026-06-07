@@ -339,6 +339,50 @@ class TestNewTrackerMethods:
         assert record.output_tokens == 100
         assert record.total_cost > 0
 
+    def test_record_fireworks_response(self):
+        storage = InMemoryStorage()
+        tracker = CostTracker(storage=storage)
+
+        class MockUsage:
+            prompt_tokens = 150
+            completion_tokens = 75
+
+        class MockResponse:
+            usage = MockUsage()
+            model = "accounts/fireworks/models/llama-v3p1-70b-instruct"
+
+        record = tracker.record_fireworks_response(
+            MockResponse(), agent="fw_bot", task="chat"
+        )
+
+        assert record.provider == Provider.FIREWORKS
+        assert record.model == "accounts/fireworks/models/llama-v3p1-70b-instruct"
+        assert record.input_tokens == 150
+        assert record.output_tokens == 75
+        assert record.total_cost > 0
+
+    def test_record_openrouter_response(self):
+        storage = InMemoryStorage()
+        tracker = CostTracker(storage=storage)
+
+        class MockUsage:
+            prompt_tokens = 80
+            completion_tokens = 40
+
+        class MockResponse:
+            usage = MockUsage()
+            model = "openrouter/auto"
+
+        record = tracker.record_openrouter_response(
+            MockResponse(), agent="router_bot", task="chat"
+        )
+
+        assert record.provider == Provider.OPENROUTER
+        assert record.model == "openrouter/auto"
+        assert record.input_tokens == 80
+        assert record.output_tokens == 40
+        assert record.total_cost > 0
+
     def test_estimate_cost_from_text_returns_expected_keys(self):
         tracker = CostTracker()
         estimate = tracker.estimate_cost_from_text(
