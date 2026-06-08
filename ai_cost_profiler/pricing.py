@@ -252,6 +252,20 @@ DEFAULT_PRICING: Dict[str, ModelPricing] = {
     "accounts/fireworks/models/firefunction-v2": ModelPricing(0.90, 0.90, "fireworks", 8_192, False, True,
                                                                "Fireworks FireFunction v2 – tool use"),
 
+    # ── OpenRouter (meta-routing layer; priced per model below) ─────────────
+    "openrouter/auto": ModelPricing(0.0, 0.0, "openrouter", 0, False, False,
+                                    "OpenRouter auto-router – price varies by selected model"),
+    "openrouter/anthropic/claude-3.5-sonnet": ModelPricing(3.00, 15.00, "openrouter", 200_000, True, True,
+                                                            "Claude 3.5 Sonnet via OpenRouter"),
+    "openrouter/openai/gpt-4o": ModelPricing(2.50, 10.00, "openrouter", 128_000, True, True,
+                                              "GPT-4o via OpenRouter"),
+    "openrouter/google/gemini-2.0-flash": ModelPricing(0.10, 0.40, "openrouter", 1_048_576, True, True,
+                                                        "Gemini 2.0 Flash via OpenRouter"),
+    "openrouter/meta-llama/llama-3.3-70b-instruct": ModelPricing(0.59, 0.79, "openrouter", 131_072, False, True,
+                                                                   "Llama 3.3 70B Instruct via OpenRouter"),
+    "openrouter/deepseek/deepseek-r1": ModelPricing(0.55, 2.19, "openrouter", 163_840, False, True,
+                                                     "DeepSeek R1 via OpenRouter"),
+
     # ── Amazon Bedrock ───────────────────────────────────────────────────────
     "amazon.titan-text-express-v1": ModelPricing(0.20, 0.60, "amazon", 8_000, False, False,
                                                  "Amazon Titan Text Express"),

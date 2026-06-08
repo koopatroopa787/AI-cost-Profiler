@@ -371,14 +371,14 @@ class TestNewTrackerMethods:
 
         class MockResponse:
             usage = MockUsage()
-            model = "openrouter/auto"
+            model = "openrouter/openai/gpt-4o"
 
         record = tracker.record_openrouter_response(
             MockResponse(), agent="router_bot", task="chat"
         )
 
         assert record.provider == Provider.OPENROUTER
-        assert record.model == "openrouter/auto"
+        assert record.model == "openrouter/openai/gpt-4o"
         assert record.input_tokens == 80
         assert record.output_tokens == 40
         assert record.total_cost > 0
