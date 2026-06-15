@@ -1,11 +1,11 @@
 """Tests for the AI Cost Profiler SDK."""
 
 import pytest
-from datetime import datetime, timedelta
+#from datetime import datetime, timedelta
 
 from ai_cost_profiler import CostTracker
 from ai_cost_profiler.models import UsageRecord, Provider
-from ai_cost_profiler.pricing import PricingEngine, ModelPricing
+from ai_cost_profiler.pricing import PricingEngine
 from ai_cost_profiler.token_counter import TokenCounter
 from ai_cost_profiler.storage import InMemoryStorage
 
@@ -306,7 +306,7 @@ class TestCostTracker:
         def my_function():
             return MockResponse()
         
-        result = my_function()
+        my_function()
         
         # Check that usage was recorded
         records = storage.get_records()
@@ -445,6 +445,116 @@ class TestAnalytics:
         assert summary.request_count == 10
         assert summary.total_cost > 0
         assert summary.avg_cost_per_request > 0
+
+
+    def test_budget_alert_fires_once(self):
+        tracker = CostTracker(enable_realtime=False)
+
+        alerts = []
+
+        tracker.set_budget(
+            limit=0.000001,
+            period="daily",
+        )
+
+        tracker.on_budget_exceeded(
+            lambda info: alerts.append(info)
+        )
+
+        tracker.record(
+            agent="test",
+            task="chat",
+            model="gpt-4o",
+            input_tokens=1000,
+            output_tokens=1000,
+        )
+
+        tracker.record(
+            agent="test",
+            task="chat",
+            model="gpt-4o",
+            input_tokens=1000,
+            output_tokens=1000,
+        )
+
+        assert len(alerts) == 1  
+
+
+    def test_global_budget_alert(self):
+        tracker = CostTracker(enable_realtime=False)
+
+        alerts = []
+
+        tracker.set_budget(
+            limit=0.000001,
+            period="daily",
+        )
+
+        tracker.on_budget_exceeded(
+            lambda info: alerts.append(info)
+        )
+
+        tracker.record(
+            agent="test",
+            task="chat",
+            model="gpt-4o",
+            input_tokens=1000,
+            output_tokens=1000,
+        )
+
+        assert len(alerts) == 1      
+
+
+    def test_agent_budget_alert(self):
+        tracker = CostTracker(enable_realtime=False)
+
+        alerts = []
+
+        tracker.set_budget(
+            limit=0.000001,
+            period="daily",
+            agent="support_bot",
+        )
+
+        tracker.on_budget_exceeded(
+            lambda info: alerts.append(info)
+        )
+
+        tracker.record(
+            agent="support_bot",
+            task="chat",
+            model="gpt-4o",
+            input_tokens=1000,
+            output_tokens=1000,
+        )
+
+        assert len(alerts) == 1
+
+    def test_user_budget_alert(self):
+        tracker = CostTracker(enable_realtime=False)
+
+        alerts = []
+
+        tracker.set_budget(
+            limit=0.000001,
+            period="daily",
+            user="alice",
+        )
+
+        tracker.on_budget_exceeded(
+            lambda info: alerts.append(info)
+        )
+
+        tracker.record(
+            agent="bot",
+            task="chat",
+            model="gpt-4o",
+            input_tokens=1000,
+            output_tokens=1000,
+            user="alice",
+        )
+
+        assert len(alerts) == 1
 
 
 if __name__ == "__main__":
