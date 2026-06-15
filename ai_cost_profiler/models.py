@@ -132,3 +132,11 @@ class ExpensivePrompt:
     model: str
     # Comparison to similar prompts
     token_ratio_vs_avg: float = 1.0  # e.g., 3.0 means 3x more tokens than average
+
+
+@dataclass
+class BudgetRule:
+    limit: float
+    period: str
+    agent: Optional[str] = None
+    user: Optional[str] = None

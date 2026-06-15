@@ -4,15 +4,14 @@ import asyncio
 import functools
 import time
 from contextlib import contextmanager
-from datetime import datetime
 from typing import Optional, Callable, Any, Dict, List
 
 from .models import UsageRecord, Provider
 from .pricing import PricingEngine
-from .token_counter import TokenCounter, get_token_counter
+from .token_counter import get_token_counter
 from .storage import StorageBackend, SQLiteStorage
 from .analytics import Analytics
-
+from datetime import datetime, timezone, timedelta
 
 class CostTracker:
     """
@@ -55,11 +54,19 @@ class CostTracker:
         
         # Real-time callbacks for dashboard
         self._realtime_callbacks: List[Callable[[UsageRecord], None]] = []
+
+        # Budget tracking
+        self._budgets = []
+        self._budget_callbacks = []
+        self._budget_notifications = {}
+    
         
         # Analytics
         self._analytics: Optional[Analytics] = None
-    
+
+        
     @property
+
     def analytics(self) -> Analytics:
         """Get analytics engine."""
         if self._analytics is None:
@@ -69,7 +76,133 @@ class CostTracker:
     def add_realtime_callback(self, callback: Callable[[UsageRecord], None]) -> None:
         """Add callback for real-time cost updates."""
         self._realtime_callbacks.append(callback)
-    
+
+    def _get_period_range(self, period):
+        now = datetime.now(timezone.utc)
+
+        if period == "daily":
+            start = now.replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+        elif period == "weekly":
+            start = (
+                now - timedelta(days=now.weekday())
+            ).replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+        elif period == "monthly":
+            start = now.replace(
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+        else:
+            raise ValueError(
+                f"Unsupported period: {period}"
+            )
+
+        return start, now    
+
+
+    def set_budget(
+        self,
+        limit: float,
+        period: str,
+        agent: Optional[str] = None,
+        user: Optional[str] = None,
+    ):
+        self._budgets.append(
+            {
+                "limit": limit,
+                "period": period,
+                "agent": agent,
+                "user": user,
+            }
+        )    
+
+
+    def on_budget_exceeded(self, callback):
+        self._budget_callbacks.append(callback) 
+
+    def _check_budgets(self, record):
+        for budget in self._budgets:
+            start, end = self._get_period_range(
+                budget["period"]
+            )
+
+            current_spend = 0.0
+
+            # Global budget
+            if not budget["agent"] and not budget["user"]:
+                current_spend = self.storage.get_total_cost(
+                    start_time=start,
+                    end_time=end,
+                )
+
+            # Agent budget
+            elif budget["agent"]:
+                rows = self.storage.get_costs_by_agent(
+                    start_time=start,
+                    end_time=end,
+                )
+
+                for row in rows:
+                    if row["agent"] == budget["agent"]:
+                        current_spend = row["total_cost"]
+                        break
+
+            # User budget
+            elif budget["user"]:
+                rows = self.storage.get_user_costs(
+                    start_time=start,
+                    end_time=end,
+                )
+
+                for row in rows:
+                    if row["user"] == budget["user"]:
+                        current_spend = row["total_cost"]
+                        break
+
+            period_key = (
+                budget["period"],
+                budget["agent"],
+                budget["user"],
+                start.isoformat(),
+            )
+
+            if current_spend >= budget["limit"]:
+                if period_key not in self._budget_notifications:
+                    info = {
+                        "limit": budget["limit"],
+                        "current_spend": current_spend,
+                        "period": budget["period"],
+                        "agent": budget["agent"],
+                        "user": budget["user"],
+                    }
+
+                    self._notify_budget_callbacks(info)
+
+                    self._budget_notifications[
+                        period_key
+                    ] = True
+
+    def _notify_budget_callbacks(self, info):
+        for callback in self._budget_callbacks:
+            callback(info)     
+
+
+        
     def remove_realtime_callback(self, callback: Callable[[UsageRecord], None]) -> None:
         """Remove a real-time callback."""
         if callback in self._realtime_callbacks:
@@ -144,13 +277,15 @@ class CostTracker:
         )
         
         # Save to storage
+
         self.storage.save(record)
-        
-        # Notify real-time listeners
+
+        self._check_budgets(record)
+
         if self.enable_realtime:
             self._notify_callbacks(record)
-        
-        return record
+
+        return record    
     
     def record_openai_response(
         self,
