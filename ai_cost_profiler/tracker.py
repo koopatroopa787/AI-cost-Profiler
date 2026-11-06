@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import math
 import time
 from contextlib import contextmanager
 from typing import Optional, Callable, Any, Dict, List
@@ -564,6 +565,8 @@ class CostTracker:
         model: str,
         estimated_output_tokens: int = 500,
         provider: Provider = Provider.OPENAI,
+        currency: str = "USD",
+        exchange_rate: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Estimate the cost of an API call before making it.
@@ -576,11 +579,23 @@ class CostTracker:
             model: The model name to use for pricing lookup.
             estimated_output_tokens: Expected number of output tokens (default 500).
             provider: The provider enum for fallback pricing.
+            currency: Target currency code (default USD).
+            exchange_rate: Target currency units per USD; required for non-USD estimates.
 
         Returns:
             A dict with keys: input_tokens, estimated_output_tokens,
             input_cost, output_cost, total_cost, model, currency.
         """
+        currency = currency.upper()
+        if exchange_rate is None:
+            if currency != "USD":
+                raise ValueError("exchange_rate is required for non-USD currency")
+            exchange_rate = 1.0
+        if not math.isfinite(exchange_rate) or exchange_rate <= 0:
+            raise ValueError("exchange_rate must be a positive finite number")
+        if currency == "USD" and exchange_rate != 1:
+            raise ValueError("exchange_rate must be 1 for USD currency")
+
         input_tokens = self.token_counter.count_tokens(input_text)
         input_cost, output_cost, total_cost = self.pricing.calculate_cost(
             model=model,
@@ -592,10 +607,10 @@ class CostTracker:
             "model": model,
             "input_tokens": input_tokens,
             "estimated_output_tokens": estimated_output_tokens,
-            "input_cost": round(input_cost, 8),
-            "output_cost": round(output_cost, 8),
-            "total_cost": round(total_cost, 8),
-            "currency": "USD",
+            "input_cost": round(input_cost * exchange_rate, 8),
+            "output_cost": round(output_cost * exchange_rate, 8),
+            "total_cost": round(total_cost * exchange_rate, 8),
+            "currency": currency,
         }
 
     def record_generic_openai_compatible(

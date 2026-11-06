@@ -417,6 +417,30 @@ class TestNewTrackerMethods:
             estimate["input_cost"] + estimate["output_cost"], rel=1e-6
         )
 
+    def test_estimate_cost_from_text_converts_currency(self):
+        tracker = CostTracker(storage=InMemoryStorage())
+        usd = tracker.estimate_cost_from_text("Test prompt", "gpt-4o", 1000)
+        eur = tracker.estimate_cost_from_text(
+            "Test prompt", "gpt-4o", 1000, currency="EUR", exchange_rate=0.9
+        )
+
+        assert eur["currency"] == "EUR"
+        for key in ("input_cost", "output_cost", "total_cost"):
+            assert eur[key] == pytest.approx(usd[key] * 0.9, abs=1e-8)
+
+    def test_estimate_cost_from_text_requires_valid_exchange_rate(self):
+        tracker = CostTracker(storage=InMemoryStorage())
+        with pytest.raises(ValueError, match="exchange_rate is required"):
+            tracker.estimate_cost_from_text("Test", "gpt-4o", currency="GBP")
+        with pytest.raises(ValueError, match="positive finite"):
+            tracker.estimate_cost_from_text(
+                "Test", "gpt-4o", currency="INR", exchange_rate=0
+            )
+        with pytest.raises(ValueError, match="must be 1 for USD"):
+            tracker.estimate_cost_from_text(
+                "Test", "gpt-4o", currency="USD", exchange_rate=0.9
+            )
+
     def test_estimate_cost_from_text_expensive_model_costs_more(self):
         tracker = CostTracker()
         cheap = tracker.estimate_cost_from_text("Same prompt", "gpt-4o-mini", 100)
